@@ -221,13 +221,13 @@ def train(num_episodes = 5000, batch_size = 256, policy_net = DQN(), target_net 
     lose_count = 0
 
     #batch_size = 256
-    gamma = 0.100
+    gamma = 0.999
     eps_start = 1
-    eps_end = 0.001
-    eps_decay = 0.00000000001
+    eps_end = 0.01
+    eps_decay = 0.0001
     target_update = 10
     memory_size = 100000
-    lr = 0.01
+    lr = 0.001
     #num_episodes = 2000
 
     man = GameManager()
