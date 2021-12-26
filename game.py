@@ -1,8 +1,6 @@
 import random
 import torch
-import csv
 import math
-import pandas as pd
 import numpy as np
 from collections import namedtuple
 from itertools import count
@@ -11,7 +9,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.transforms as T
 
-
+#NEURAL NETWORK
 class DQN(nn.Module):
     def __init__(self):
         super().__init__()
@@ -32,7 +30,7 @@ Experience = namedtuple(
     ('state', 'next_state', 'reward')
 )
 
-
+# STORE STATES FOR LATER TRAINING
 class ReplayMemory:
     def __init__(self, capacity):
         self.capacity = capacity
@@ -52,7 +50,7 @@ class ReplayMemory:
     def can_provide_sample(self, batch_size):
         return len(self.memory) >= batch_size
 
-
+# GET EXPLORATION RATE
 class EpsilonGreedyStrategy:
     def __init__(self, start, end, decay):
         self.start = start
@@ -63,6 +61,7 @@ class EpsilonGreedyStrategy:
         return self.end + (self.start - self.end) * \
                math.exp(-1 * current_step * self.decay)
 
+# CHOOSE ACTION (RANDOM / FROM POLICY NET) BASED ON EXPLORATION RATE
 class Agent:
     def __init__(self, strategy):
         self.current_step = 0
@@ -81,12 +80,12 @@ class Agent:
                 print(policy_net(state).argmax().item())
                 return policy_net(state).argmax()
 
+# GAME MANAGER CLASS
 class GameManager:
     def __init__(self):
         self.reward = 0.5
-        self.bot1 = 1
-        self.bot2 = -1
-        self.player = 1
+        self.bot1 = 1 # PLAYER X
+        self.bot2 = -1 # PLAYER O
         self.winner = 0
         self.board = torch.zeros(9)
         self.player = self.bot1
@@ -94,9 +93,11 @@ class GameManager:
         self.move_again = 0
         self.reset()
 
+    # GET CURRENT BOARD STATE
     def get_state(self):
         return self.board
 
+    # RESET GAMME TO INITIAL POSITION
     def reset(self):
         self.done = False
         self.player = 1
@@ -104,6 +105,7 @@ class GameManager:
         for i in range(9):
             self.board[i] = 0
 
+    # RETURN TRUE IF ANY POSITION IS AVAILABLE / NOT DRAW
     def avail_pos(self):
         for i in range(9):
             if self.board[i] == 0:
@@ -111,6 +113,7 @@ class GameManager:
 
         return False
 
+    # TAKE ACTION
     def step(self, action):
         self.make_move(action.item())
         if self.reward == 0:
@@ -120,6 +123,7 @@ class GameManager:
         elif self.reward == 1:
             self.done = True
 
+    # RETURN TRUE IF GAME OVER
     def game_over(self):
         if self.board[0] == self.board[1] == self.board[2] != 0:
             return True
@@ -140,18 +144,21 @@ class GameManager:
 
         return False
 
+    #SWITCH PLAYER MOVE
     def switch_bot(self):
         if self.player == self.bot1:
             self.player = self.bot2
         else:
             self.player = self.bot1
 
+    # RETURN TRUE IF GVEN CELL IS EMPTY
     def empty_cell(self, pos):
         if self.board[pos] == 0:
             return True
 
         return False
 
+    # MAKE MOVE FOR PLAYER 1
     def make_move(self, pos):
         if self.avail_pos():
             if self.empty_cell(pos):
@@ -168,6 +175,7 @@ class GameManager:
             self.reward = 0
             return
 
+    # MAKE MOVE FOR PLAYER -1
     def ran_move(self):
         if self.avail_pos():
             ran_idx = random.randrange(9)
@@ -195,7 +203,7 @@ def extract_tensors(experiences):
 
     return t1, t2, t3
 
-
+# GET Q VALUES
 class QValues:
     @staticmethod
     def get_current(policy_net, states):
@@ -288,140 +296,7 @@ def train(num_episodes = 5000, batch_size = 256, policy_net = DQN(), target_net 
 
 #print(episode_durations)
 
-class HumanManager:
-    def __init__(self):
-        self.reward = 0.5
-        self.bot1 = 1
-        self.bot2 = -1
-        self.player = 1
-        self.winner = 0
-        self.board = torch.zeros(9)
-        self.player = self.bot1
-        self.done = False
-        self.reset()
+policy_net = DQN()
+target_net = DQN()
 
-    def get_state(self):
-        return self.board
-
-    def reset(self):
-        self.done = False
-        self.player = 1
-        self.reward = 0.5
-        for i in range(9):
-            self.board[i] = 0
-
-    def avail_pos(self):
-        for i in range(9):
-            if self.board[i] == 0:
-                return True
-
-        return False
-
-    def step(self, action, pos1):
-        self.make_move(action.item(), pos1)
-        if self.reward == 0 or self.reward == -1 or self.reward == 1:
-            self.done = True
-
-    def game_over(self):
-        if self.board[0] == self.board[1] == self.board[2] != 0:
-            return True
-        elif self.board[3] == self.board[4] == self.board[5] != 0:
-            return True
-        elif self.board[6] == self.board[7] == self.board[8] != 0:
-            return True
-        if self.board[0] == self.board[3] == self.board[6] != 0:
-            return True
-        elif self.board[1] == self.board[4] == self.board[7] != 0:
-            return True
-        elif self.board[2] == self.board[5] == self.board[8] != 0:
-            return True
-        elif self.board[0] == self.board[4] == self.board[8] != 0:
-            return True
-        elif self.board[2] == self.board[4] == self.board[6] != 0:
-            return True
-
-        return False
-
-    def switch_bot(self):
-        if self.player == self.bot1:
-            self.player = self.bot2
-        else:
-            self.player = self.bot1
-
-    def empty_cell(self, pos):
-        if self.board[pos] == 0:
-            return True
-
-        return False
-
-    def make_move(self, pos, pos1):
-        if self.avail_pos():
-            if not self.empty_cell(pos):
-                self.reward = -1
-            self.board[pos] = self.player
-            if self.game_over():
-                self.reward = 1
-                return
-            self.switch_bot()
-            self.ran_move(pos1)
-        else:
-            self.reward = 0
-            return
-
-    def ran_move(self, pos1):
-        if self.avail_pos():
-            #ran_idx = random.randrange(9)
-            #if not self.empty_cell(ran_idx):
-                #self.ran_move()
-            self.board[pos1] = self.player
-            if self.game_over():
-                self.reward = -1
-                return
-            self.switch_bot()
-            return
-        else:
-            self.reward = 0
-            return
-
-class Agent1:
-    def select_action(self, state, policy_net):
-        with torch.no_grad():
-            #print(policy_net(state).argmax().item())
-            return policy_net(state).argmax()
-
-def train1(policy_net):
-    man = HumanManager()
-    agent = Agent1()
-
-    while(1):
-        print("over")
-        man.reset()
-        state = man.get_state()
-        y = state.detach().clone()
-        while(not man.game_over()):
-            action = agent.select_action(y, policy_net)
-
-            print(action)
-            inp = int(input("Enter ur val: "))
-            man.step(action, inp)
-            next_state = man.get_state()
-            y = next_state.detach().clone()
-
-def human_play():
-    """
-    model1 = DQN()
-    model1.load_state_dict(torch.load(""))
-    model1.eval()
-
-    model = DQN()
-    model.load_state_dict(torch.load(""))
-    """
-
-    policy_net = DQN()
-    target_net = DQN()
-
-    train(50000, 256, policy_net, target_net)
-
-    train1(policy_net)
-
-human_play()
+train(50000, 256, policy_net, target_net)
